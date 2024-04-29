@@ -1,22 +1,28 @@
 #include <stdbool.h>
 #include <stm8s.h>
-//#include <stdio.h>
+#include <stdio.h>
 #include "main.h"
 #include "milis.h"
 //#include "delay.h"
-//#include "uart1.h"
+#include "uart1.h"
+#include "adc_helper.h"
+#include "daughterboard.h"
 
 void init(void)
 {
     CLK_HSIPrescalerConfig(CLK_PRESCALER_HSIDIV1);      // taktovani MCU na 16MHz
 
-    GPIO_Init(LED_PORT, LED_PIN, GPIO_MODE_OUT_PP_LOW_SLOW);
-#if defined (BTN_PORT) || defined (BTN_PIN)
-    GPIO_Init(BTN_PORT, BTN_PIN, GPIO_MODE_IN_FL_NO_IT);
-#endif
-
-    init_milis();
-    //init_uart1();
+    init_uart1();
+    ADC2_SchmittTriggerConfig(ADC2_SCHMITTTRIG_CHANNEL14, DISABLE);
+    ADC2_SchmittTriggerConfig(ADC2_SCHMITTTRIG_CHANNEL15, DISABLE);
+    //clock 16/4 musi byt pod maximem adc
+    ADC2_PrescalerConfig( ADC2_PRESSEL_FCPU_D4);
+    ADC2_AlignConfig(ADC2_ALIGN_RIGHT);
+    //nastavime multiplxer na nejakou knihovnu
+    ADC2_Select_Channel(ADC2_CHANNEL_14);
+    //rozběhnem adc
+    ADC2_Cmd(ENABLE);
+    ADC2_Startup_Wait();
 }
 
 
@@ -24,20 +30,15 @@ int main(void)
 {
   
     uint32_t time = 0;
-
+    uint16_t vref,vtemp;
     init();
-
-    while (1) {
-#if defined (BTN_PORT) && defined (BTN_PIN)
-        if (milis() - time > 333 && !PUSH(BTN)) {
-#else
-        if (milis() - time > 333 ) {
-#endif
-            REVERSE(LED); 
+    while(1){
+        if (milis()- time >1000){
             time = milis();
-            //printf("%ld\n", time);
+            vref = ADC_get(CHANNEL_VREF);
+            vtemp = ADC_get(CHANNEL_VTEMP);
+            printf("%d %d \n",vref,vtemp);
         }
-        //delay_ms(333);
     }
 }
 
